@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# /etc/rc.d/rc.virtualMachines
+#
+# Start/stop
+# the VirtualBox Starter VirtualMachines
+# Configure file rc.virtualMachines.conf to load machines to start/stop
+# Arquivo de configuracao para inicializacao das maquinas virtuais
+# 
+# use     : [nome da maquina]
+# Example : windows2k3
+#         : slack12
+#
+
+case "$1" in
+  'start')
+    
+    echo "Starting VMs..."
+    cat /etc/rc.d/rc.virtualMachines.conf | while read VM; do
+        echo "Starting VM: $VM ..."
+        sudo /usr/bin/VBoxManage startvm $VM -type vrdp
+    done
+  ;;
+  'poweroff')
+    
+    echo "PowerOff VMs..."
+    cat /etc/rc.d/rc.virtualMachines.conf | while read VM; do
+        echo "poweroff VM: $VM ..."
+        sudo /usr/bin/VBoxManage controlvm $VM poweroff
+    done
+  ;;
+  'stop')
+    echo "Stopping VMs..."
+    cat /etc/rc.d/rc.virtualMachines.conf | while read VM; do
+        echo "Stopping VM: $VM ..."
+        sudo /usr/bin/VBoxManage controlvm $VM savestate
+        #sudo /usr/bin/VBoxManage controlvm $VM acpipowerbutton
+    done
+  ;;
+  'import')
+  ;;
+  *)
+    echo "Usage: $0 {start|stop|poweroff|import}"
+  ;;
+esac

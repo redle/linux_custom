@@ -1,0 +1,184 @@
+#!/bin/sh
+
+LABEL="INSTALL"
+
+source /usr/sbin/functions
+
+recover_start() {
+
+  touch /var/run/mtab
+
+  YIELD_INFO "INICIANDO PROCESSO DE ATUALIZACAO"
+  pendrive &
+  
+  blkid -U 59ac5a50-527e-11e1-b86c-0800200c9a66
+  RECOVER_CMA=$?
+  
+  #if [ $RECOVER_CMA -eq 0 ]; then
+      led &> /dev/null &
+  #fi
+
+  sleep 3
+
+  recover_led init
+
+  recover_module
+  recover_verify
+  recover_init
+
+  recover_led finish
+}
+
+recover_led() {
+
+  case $1 in
+
+  'init')
+    STATUS_LED=12
+  ;;
+
+  'finish')
+    STATUS_LED=10
+  ;;
+
+  'error')
+    STATUS_LED=11
+  ;;
+
+  esac
+
+  ev 1 $STATUS_LED
+  ev 2 $STATUS_LED
+  ev 3 $STATUS_LED
+}
+
+recover_verify() {
+  RETRY=20
+
+  YIELD_INFO "VERIFICACAO DE CF"
+
+  if [ ! -e /dev/sdb ]; then
+    YIELD_INFO "CF NAO ENCONTRADO"
+    
+    while [ $RETRY -gt 0 ]; do
+
+      if [ -e /dev/sdb ]; then
+        break
+      fi
+
+      RETRY=$((RETRY-1))
+      sleep 1
+    done    
+
+    if [ ! -e /dev/sdb ]; then
+       recover_led error
+    fi
+
+    exit 0
+  fi
+
+}
+
+recover_module() {
+  YIELD_INFO "CARREGANDO MODULOS"
+  modprobe libata
+  modprobe pata_it821x
+  modprobe pata_rdc 
+  modprobe ata_piix
+  modprobe ahci &> /dev/null
+}
+
+recover_init() {
+
+  CREATE_PARTITION /dev/sdb 8
+  MAKE_FILESYSTEM /dev/sdb 2
+
+  tune2fs -U fe9aa91f-87a5-48b7-b725-3c4b2f7bd087 /dev/sdb1
+  tune2fs -U 30e2f977-30c2-441d-8f8e-d73f3961a901 /dev/sdb2
+
+  YIELD_INFO "MOUNTANDO COMPACT FLASH"
+  mount /dev/sdb1 /mnt/recover
+
+  YIELD_INFO "COPIANDO SISTEMA"
+  cp -a /update/* /mnt/recover
+
+  if [ $? -ne 0 ]; then
+    YIELD_INFO "PROBLEMA AO ATULIZAR SISTEMA"
+    recover_led error
+    exit 0
+  fi
+
+  YIELD_INFO "CARREGANDO BOOTLOADER"
+
+  lilo -b /dev/sdb -r /mnt/recover &> /dev/null
+
+  if [ $? -ne 0 ]; then
+    YIELD_INFO "PROBLEMA AO CARREGAR BOOTLOADER"
+    recover_led error
+    exit 0
+  fi
+
+  rm /mnt/recover/dev/sd*
+
+  umount /dev/sdb1
+  
+  if [ $RECOVER_CMA -eq 0 ]; then
+      recover_archive
+  fi
+  
+  YIELD_INFO "PROCESSO DE INSTALACAO FINALIZADO"  
+}
+
+recover_archive() {
+    YIELD_INFO "PREPARANDO HD"
+    DRIVE=/dev/sdc
+    RETRY=20
+
+    YIELD_INFO "PROCURANDO HD"
+    
+    killall -SIGUSR1 watchdog
+    
+    while [ $RETRY -gt 0 ]; do
+    
+        if [ -e /dev/sdc ]; then
+            break
+        fi
+    
+        RETRY=$((RETRY-1))
+        sleep 1
+    done
+
+    SIZE=`fdisk -l $DRIVE 2> /dev/null | grep Disk | grep -v doesn | awk '{print $5}'`
+    CYLINDERS=`echo $SIZE/255/63/512 | bc`
+
+    echo $CYLINDERS
+    
+    {
+    echo ,,,-
+    } | sfdisk -H 255 -S 63 -C $CYLINDERS $DRIVE  2> /dev/null > /dev/null
+
+    sleep 10
+    
+    mkfs.ext2 /dev/sdc1
+    
+    if [ $? -ne 0 ]; then
+        YIELD_INFO "PROBLEMA NA FORMATACAO DO HD"
+        recover_led error
+        exit 0
+    fi
+
+    tune2fs -U 0b5652b0-70d0-11e0-a1f0-0800200c9a66 ${DRIVE}1
+    tune2fs -c 3000 ${DRIVE}1
+
+
+    YIELD_INFO "HD FORMATADO COM SUCESSO"
+    killall -SIGUSR2 watchdog
+
+}
+
+case "$1" in
+*)
+  recover_start
+  ;;
+esac
+

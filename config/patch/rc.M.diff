@@ -1,0 +1,26 @@
+*** origin/rc.M	2012-08-05 21:19:13.472354152 -0300
+--- rc.M	2012-08-07 02:17:44.725338863 -0300
+***************
+*** 370,375 ****
+--- 370,390 ----
+    . /etc/rc.d/rc.sysvinit
+  fi
+  
++ # Start the local PostgreSQL.
++ if [ -x /etc/rc.d/rc.postgresql ]; then
++   sh /etc/rc.d/rc.postgresql start
++ fi
++ 
++ # Start the VirtualBox.
++ if [ -x /etc/rc.d/rc.virtualbox ]; then
++   . /etc/rc.d/rc.virtualbox start &
++ fi
++ 
++ # Start the NoIp.
++ if [ -x /etc/rc.d/rc.noip2 ]; then
++   . /etc/rc.d/rc.noip2 start
++ fi
++ 
+  # Start the local setup procedure.
+  if [ -x /etc/rc.d/rc.local ]; then
+    . /etc/rc.d/rc.local

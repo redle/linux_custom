@@ -1,0 +1,153 @@
+#! /bin/sh
+
+YIELD_INFO() {
+    echo -e "\033[1m[$LABEL] \033[0m $1"
+}
+
+YIELD_ERROR() {
+    echo -e "\033[1m[$LABEL] \033[0m $1"
+}
+
+CREATE_PARTITION() {
+
+    DRIVE=$1
+    PARTITION_SIZE=$2
+
+    YIELD_INFO "CRIANDO PARTICOES DE DISCO: $DRIVE $SIZE"
+    #dd if=/dev/zero of=$DRIVE bs=1024 count=1024
+    dd if=/dev/zero of=$DRIVE bs=512 count=1 2> /dev/null > /dev/null
+
+    SIZE=`fdisk -l $DRIVE 2> /dev/null | grep Disk | awk '{print $5}'`
+
+    CYLINDERS=`echo $SIZE/255/63/512 | bc`
+
+    {
+    echo ,$PARTITION_SIZE,,*
+    echo ,,,-
+    } | sfdisk -H 255 -S 63 -C $CYLINDERS $DRIVE 2> /dev/null > /dev/null
+    
+    if [ $? -ne 0 ]; then
+        YIELD_ERROR "PROBLEMA AO CRIAR PARTICOES"
+        exit 0
+    fi
+
+    YIELD_INFO "FINALIZADO A CRIACAO DAS PARTICOES DE DISCO"
+
+    sleep 5
+}
+
+MAKE_FILESYSTEM() {
+   
+    DRIVE=$1
+    PARTITION=$2
+    COUNT=1
+    
+    while [ $PARTITION -ge $COUNT ]; do
+    
+        mkfs.ext2 ${DRIVE}$COUNT 2> /dev/null > /dev/null
+
+        if [ $? -ne 0 ]; then
+            YIELD_ERROR "PROBLEMA CRIAR SISTEMA DE ARQUIVO"
+            exit 0
+        fi
+
+        YIELD_INFO "CRIANDO SISTEMA DE ARQUIVO: ${DRIVE}$COUNT"
+
+        tune2fs -c 3000 ${DRIVE}$COUNT 2> /dev/null > /dev/null
+
+        COUNT=$((COUNT+1))
+    done
+}
+
+COPY_SYSTEM() {
+    SRC=$1
+    MOUNT=$2
+    SYSTEM=$3
+
+    YIELD_INFO "INSTALANDO SISTEMA: $SYSTEM"
+    mount $SRC $MOUNT
+    tar xf $SYSTEM.tar -C $MOUNT &> /dev/null
+    #cp -a $SYSTEM/* $MOUNT
+    sync
+}
+
+CREATE_BOOTLOADER() {
+    DRIVE=$1
+    MOUNT=$2
+
+    YIELD_INFO "CRIANDO BOOTLOADER"
+    lilo -b $DRIVE -r $MOUNT &> /dev/null
+   
+    if [ $? -ne 0 ]; then
+        YIELD_ERROR "PROBLEMA AO CRIAR BOOTLOADER"
+        exit 0
+    fi
+}
+
+CLEAN_SYSTEM() {
+    MOUNT=$1
+
+    YIELD_INFO "LIMPEZA DO ARQUIVO DE INSTALACAO"
+    # DEIXAR EM UM PASTA FIXA lilo.conf e boot
+    rm -rf $MOUNT/etc/lilo.conf
+    #rm -rf $MOUNT/boot/
+
+    echo "" > $MOUNT/etc/HOSTNAME
+
+    if [ ! -e $MOUNT/etc/modulo ]; then
+        touch $MOUNT/etc/modulo
+    fi
+
+    echo "" > $MOUNT/etc/modulo
+
+    if [ ! -e $MOUNT/etc/sensor ]; then
+        touch $MOUNT/etc/sensor
+    fi
+    
+    echo "" > $MOUNT/etc/sensor
+
+    # zerar arquivos de log
+    #echo "" > $MOUNT/var/log/cron
+    #echo "" > $MOUNT/var/log/debug
+    #echo "" > $MOUNT/var/log/dmesg
+    #echo "" > $MOUNT/var/log/messages
+    #echo "" > $MOUNT/var/log/secure
+    #echo "" > $MOUNT/var/log/syslog
+    #echo "" > $MOUNT/var/log/dropbear.log
+
+    # echo "" > /var/log/btmp
+    # echo "" > /var/log/faillog
+    # echo "" > /var/log/lastlog
+    # echo "" > /var/log/wtmp
+
+
+    # PATCH DE LIMPEZA
+    # limpeza do crontab
+    # rm -rf /file_emb/home/
+    # rm -rf /file_emb/media/
+    # rm -rf /mnt/*
+    # mkdir -p /mnt/pendrive
+    # rm -rf /usr/X11*
+    # rm -rf /var/X11
+    # rm -rf /usr/man/
+    # rm -rf /usr/doc/
+    # rm -rf /usr/info/
+    # rm -rf /usr/local
+    # rm -rf /usr/src
+    # rm -rf /usr/share/locale/~en/
+    #
+    # rm -rf /etc/motd
+    # rm -rf /etc/issue*
+    # rm -rf /etc/slackware-version
+    # rm -rf /usr/share/zoneinfo
+    # rm ~/.sqlite_history
+    # rm ~/.bash_history
+    # rm /var/log/setup/*.*
+    # rm /var/log/maillog
+    # rm /tmp/.ICE-unix
+    # rm /tmp/.X11-unix
+    
+    # rm -rf /srv
+    # rm -rf /media
+    # rm -rf /mnt
+}

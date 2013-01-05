@@ -1,0 +1,482 @@
+#!/bin/sh
+
+#source /usr/bin/functions
+
+DRIVE_HD=/dev/sda
+DRIVE_USB=/dev/sdb
+
+LOG_PATH=/var/log/setup/log
+MODULE_PATH=/lib/modules/3.5.0-rc7/kernel
+MODULE_IDE=$MODULE_PATH/drivers/ata/
+MODULE_USB=$MODULE_PATH/kernel/drivers/ata/
+PATCH_PATH=/patch
+PENDRIVE_DEVICE=/dev/sdb1
+
+PARTITION_SYSTEM=50
+PARTITION_DB=50
+PARTITION_SWAP=4
+ARCH=64
+
+SYSTEM_PATH=/mnt/system
+
+PIPE_CONTROL=/tmp/setup_control
+
+INFO() {
+    echo -e "\033[1m[INSTALL] \033[0m $1" >> LOG_PATH
+}
+
+ERROR() {
+    echo -e "\033[1m[INSTALL] \033[0m $1"
+}
+
+CREATE_PARTITION() {
+
+	if [ "$1" == "MENU" ]; then
+		dialog                                                     \
+	   --title ' AVISO '                                       	   \
+	   --infobox "\nCriando nova tabela de partições do disco\n  root:${PARTITION_SYSTEM}GB\n  DB:${PARTITION_DB}GB\n  SWAP:${PARTITION_DB}GB.\n\n"  \
+	   0 0
+	fi
+
+	sleep 4
+
+    #INFO "CRIANDO PARTICOES: "
+   
+    dd if=/dev/zero of=$DRIVE bs=512 count=1 1>> LOG_PATH 2>> LOG_PATH
+
+    SIZE=`fdisk -l $DRIVE 2> /dev/null | grep Disk | grep -v doesn | awk '{print $5}'`
+
+    CYLINDER=`echo $SIZE/255/63/512 | bc`
+	CYLINDER_BYTE=`echo $SIZE/$CYLINDER | bc`
+
+	CYLINDER_SYSTEM=`echo "($PARTITION_SYSTEM*2^30)/$CYLINDER_BYTE" | bc`
+	CYLINDER_DB=`echo "($PARTITION_DB*2^30)/$CYLINDER_BYTE" | bc`
+	CYLINDER_SWAP=`echo "($PARTITION_SWAP*2^30)/$CYLINDER_BYTE" | bc`
+	
+    {
+    echo ,$CYLINDER_SYSTEM,,*
+    echo ,$CYLINDER_SWAP,82,
+    echo ,$CYLINDER_DB,,
+    echo ,,,-
+    } | sfdisk -H 255 -S 63 -C $CYLINDER $DRIVE_HD 1>> LOG_PATH 2>> LOG_PATH
+    
+    if [ $? -ne 0 ] || [ ! -e ${DRIVE_HD}1 ] || [ ! -e ${DRIVE_HD}2 ] || [ ! -e ${DRIVE_HD}3 ]; then
+        ERROR "FAIL CREATE PARTITION"
+        exit 0
+    fi
+}
+
+MAKE_FILESYSTEM() {
+
+	if [ "$1" == "MENU" ]; then
+		dialog                                                     \
+	   --title ' AVISO '                                       	   \
+	   --infobox '\nCriando filesystem das partições.\n\n'  \
+	   0 0
+	fi
+
+	mkfs.ext4 ${DRIVE_HD}1 1>> LOG_PATH 2>> LOG_PATH
+	mkswap /dev/${DRIVE_HD}2 1>> LOG_PATH 2>> LOG_PATH
+	mkfs.ext4 ${DRIVE_HD}3 1>> LOG_PATH 2>> LOG_PATH
+	mkfs.ext4 ${DRIVE_HD}4 1>> LOG_PATH 2>> LOG_PATH
+}
+
+MODPROBE_DISK() {
+	
+	if [ "$1" == "MENU" ]; then
+		dialog                                                 \
+	   --title ' AGUARDE '                                     \
+	   --infobox '\nCarregando módulos do kernel de disco.\n\n'  \
+	   0 0
+	fi
+
+	sleep 2
+
+	cd $MODULE_IDE/
+		
+	for MODULE_NAME in `ls`; do
+	    modprobe $MODULE_NAME 1>> LOG_PATH 2>> LOG_PATH
+	done
+	
+	modprobe sd_mod 1>> LOG_PATH 2>> LOG_PATH
+}
+
+MOUNT_ISO() {
+
+	if [ "$1" == "MENU" ]; then
+		dialog                                                     \
+	   --title ' AVISO '                                       	   \
+	   --infobox '\nMountando imagem ISO para instalação dos pacotes.\n\n'  \
+	   0 0
+	fi
+
+	sleep 2
+
+	mount $PENDRIVE_DEVICE /mnt/pendrive 1>> LOG_PATH 2>> LOG_PATH
+
+	ISO=`find /mnt/pendrive/ -name *${ARCH}*.iso -print` 
+	
+	if [ "$ISO" == "" ]; then
+		ERROR "NAO ENCONTRADO O ISO DO SLACKWARE"
+		exit 0
+	fi
+	
+	mount -o loop $ISO /mnt/iso/ 1>> LOG_PATH 2>> LOG_PATH
+}
+
+MODPROBE_USB() {
+
+	if [ "$1" == "MENU" ]; then
+		dialog                                                 \
+	   --title ' AGUARDE '                                     \
+	   --infobox '\nCarregando módulos USB.\n'  \
+	   0 0
+	fi
+	
+	modprobe ehci_hcd 1>> LOG_PATH 2>> LOG_PATH
+	modprobe uhci_hcd 1>> LOG_PATH 2>> LOG_PATH
+	modprobe ohci_hcd 1>> LOG_PATH 2>> LOG_PATH
+	modprobe vfat 1>> LOG_PATH 2>> LOG_PATH
+	modprobe usb_storage 1>> LOG_PATH 2>> LOG_PATH
+	modprobe sd_mod 1>> LOG_PATH 2>> LOG_PATH
+}
+
+PREPARE_DISK() {
+
+	if [ "$1" == "MENU" ]; then
+		dialog                                                     \
+	   --title ' AVISO '                                       	   \
+	   --infobox '\nPreparando disco para instalação.\n\n'  \
+	   0 0
+	   
+	   
+	fi
+
+	sleep 2
+
+	modprobe ext4 1>> LOG_PATH 2>> LOG_PATH
+
+	#INFO "PREPARANDO SISTEMA"
+	mount ${DRIVE_HD}1 $SYSTEM_PATH 1>> LOG_PATH 2>> LOG_PATH
+}
+
+INSTALL_SYSTEM() {
+
+	PATH_INSTALL=/mnt/iso/slackware${ARCH}
+
+	cd /tagfile
+
+	echo "SERIE|a:ADD" > /tmp/package
+	cat a_pkg | grep ADD >> /tmp/package
+	
+	echo "SERIE|l:ADD" >> /tmp/package
+	cat l_pkg | grep ADD >> /tmp/package
+	
+	echo "SERIE|n:ADD" >> /tmp/package
+	cat n_pkg | grep ADD >> /tmp/package
+	
+	echo "SERIE|d:ADD" >> /tmp/package
+	cat d_pkg | grep ADD >> /tmp/package
+
+	PKG_COUNT=`cat /tmp/package | wc -l`
+
+	PKG_INSTALLED=1
+
+	SERIE=""
+	(
+		for PKG_NAME in `cat /tmp/package | grep ADD | cut -f1 -d:`; do 
+		    echo "$PERC"
+	
+			if [ `echo $PKG_NAME | grep SERIE` ]; then
+				SERIE=`echo $PKG_NAME | cut -f2 -d"|"`
+				continue
+			fi
+	
+		    PERC=`echo "($PKG_INSTALLED*100)/$PKG_COUNT" | bc`
+		    PKG_INSTALLED=$((PKG_INSTALLED+1))
+		    
+		    installpkg -root $SYSTEM_PATH $PATH_INSTALL/$SERIE/$PKG_NAME-*.t?z 1> /dev/null 2>> $LOG_PATH
+		done
+	) | dialog --title " AVISO " --gauge "\n Instalando o sistema. Aguarde! \n" 8 40 0
+
+    UUID=`blkid | grep $PENDRIVE_DEVICE | cut -f3 -d"=" | tr -d \"` 
+    echo $UUID > $SYSTEM_PATH/etc/pendrive-install
+    
+    echo "" > $SYSTEM_PATH/etc/motd
+    echo "" > $SYSTEM_PATH/etc/issue
+    echo "" > $SYSTEM_PATH/etc/issue.net
+    echo "lnx.ncs.com.br" > $SYSTEM_PATH/etc/issue.net
+
+	INFO "INSTALACAO FINALIZADA"
+}
+
+INSTALL_EXTRA() {
+
+	if [ "$1" == "MENU" ]; then
+		dialog                                                     \
+	   --title ' AVISO '                                       	   \
+	   --infobox '\nInstalando pacotes extras.\n'  \
+	   0 0
+	fi
+
+	sleep 2
+
+	cd /mnt/pendrive/extra/
+
+	for PACKAGE in `ls *.t?z`; do
+		installpkg -root $SYSTEM_PATH $PACKAGE 1> /dev/null 2>> $LOG_PATH	
+	done
+
+}
+
+CREATE_USER() {
+
+	if [ "$1" == "MENU" ]; then
+		dialog                                                     \
+	   --title ' AVISO '                                       	   \
+	   --infobox '\nCriando usuários padrões do sistema.\n'  \
+	   0 0
+	fi
+
+	sleep 2
+
+	SHADOW=`cat $SYSTEM_PATH/etc/shadow | grep -v root`
+
+	echo 'root:$1$CVAc1/np$G/UPcj1RGPICyZXi/HMb51:15555:0:::::' > $SYSTEM_PATH/etc/shadow
+	
+	for LINE in $SHADOW; do
+		echo $LINE >> $SYSTEM_PATH/etc/shadow	
+	done 
+	
+	mkdir $SYSTEM_PATH/home/repair
+	chown repair.repair $SYSTEM_PATH/home/repair
+	echo 'repair:$1$/TxzC/Cz$JGZWpY34kxYOnyYybpvQS0:15555:0:99999:7:::' >> $SYSTEM_PATH/etc/shadow
+	echo "repair:x:1000:1000:repair:/home/repair:/bin/bash" >> $SYSTEM_PATH/etc/passwd
+	echo 'postgres:x:209:209:repair:/home/repair:/bin/bash' >> $SYSTEM_PATH/etc/passwd
+	
+	GROUP=`cat $SYSTEM_PATH/etc/group | grep -v sshd`
+	
+	for LINE in $GROUP; do
+		echo $LINE >> $SYSTEM_PATH/etc/group	
+	done 
+	
+	echo "sshd:x:33:sshd,repair" >> $SYSTEM_PATH/etc/group
+	echo "repair:x:1000:" >> $SYSTEM_PATH/etc/group
+	echo "postgres:x:209:" >> $SYSTEM_PATH/etc/group
+
+}
+
+CREATE_FSTAB() {
+
+	if [ "$1" == "MENU" ]; then
+		dialog                                                     \
+	   --title ' AVISO '                                       	   \
+	   --infobox '\nCriando arquivo de configuração: FSTAB.\n\n'  \
+	   0 0
+	fi
+
+	sleep 2
+
+	echo -e "
+/dev/sda2        swap             swap        defaults         0   0
+/dev/sda1        /           	  ext4        defaults         1   1
+/dev/sda3        /files_db     	  ext4        defaults         1   2
+/dev/sda4        /files     	  ext4        defaults         1   2
+#/dev/sda2        swap            swap        defaults         0   0
+" > $SYSTEM_PATH/etc/fstab
+
+	mkdir $SYSTEM_PATH/files
+	mkdir -p $SYSTEM_PATH/files/vm
+	mkdir $SYSTEM_PATH/files_db
+}
+
+APPLY_PATCH() {
+	cd $SYSTEM_PATH/etc/
+	patch -p0 < /patch/inittab.diff 1>> LOG_PATH 2>> LOG_PATH
+	
+	cd $SYSTEM_PATH/etc/ssh/
+	patch -p0 < /patch/sshd_config.diff 1>> LOG_PATH 2>> LOG_PATH
+    
+    cd $SYSTEM_PATH/etc/rc.d/
+    patch -p0 < /patch/rc.M.diff 1>> LOG_PATH 2>> LOG_PATH
+}
+
+CREATE_LILO() {
+
+	if [ "$1" == "MENU" ]; then
+		dialog                                                     \
+	   --title ' AVISO '                                       	   \
+	   --infobox '\nCarregando bootloader na MBR.\n\n'  \
+	   0 0
+	fi
+
+	sleep 2
+
+echo -e "
+timeout = 1200
+lba32
+compact
+delay = 60
+
+change-rules
+  reset
+
+install = menu
+
+image = /boot/vmlinuz
+  root = /dev/sda1
+  label = lnx
+  read-only
+" > $SYSTEM_PATH/etc/lilo.conf
+
+	lilo -b /dev/sda -r $SYSTEM_PATH
+}
+
+FINISH_INSTALL() {
+
+	if [ "$1" == "MENU" ]; then
+		dialog                                                           \
+	   --title ' AVISO '                                       	         \
+	   --yesno '\n Instalação finalizada. Deseja reiniciar o servidor?\n\n\n'  \
+	   0 0
+	fi
+   
+    if [ $? -eq 0 ]; then
+        cd /
+	    umount $SYSTEM_PATH/
+		reboot
+    fi
+}
+
+MENU_INIT() {
+
+	dialog                                       \
+     --title 'Perfil'                          \
+     --menu 'Escolha o perfil da instalação:'  \
+      0 0 0                                     \
+      padrao       'Instalacao padrão' \
+      customizada  'Customizar instalacao'
+
+    dialog --title ' AVISO - NCS GNU/LINUX ' --yesno '\nO procedimento de instalação automática irá apagar todos os dados do hard disk, antes de prosseguir verifique se os backup necessários foram feitos.\n\n Você deseja continuar?\n\n\n' 0 0
+
+    if [ $? -eq 1 ]; then
+		echo 255 > $PIPE_CONTROL
+		exit 0
+    fi
+}
+
+CONTROL_MENU() {
+    STEP_CURRENT=0
+
+    touch $PIPE_CONTROL
+    echo 1 > $PIPE_CONTROL
+
+    while [ 1 -eq 1 ]; do
+        STEP_IN=`cat $PIPE_CONTROL`
+
+        if [ $STEP_IN -gt $STEP_CURRENT ]; then
+            STEP_CURRENT=$STEP_IN
+            
+            case $STEP_CURRENT in            	
+	            1)
+	            	MENU_INIT	
+	            ;;
+	            
+	            2)
+	            	MODPROBE_DISK MENU
+	            ;;
+	            
+	            255)
+	            	exit 0
+	            ;;
+            esac
+        fi
+
+        sleep 1
+    done
+}
+
+USAGE() {
+	echo ""
+}
+
+case $1 in   
+	ap)
+		APPLY_PATCH
+	;;
+
+    cp)
+    	CREATE_PARTITION
+    ;;
+    
+    mu)
+    	MODPROBE_USB
+    ;;
+    
+    md)
+    	MODPROBE_DISK
+    ;;
+    
+    mi)
+    	MOUNT_ISO
+    ;;
+    
+    is)
+    	INSTALL_SYSTEM
+    ;;
+    
+    mf)
+    	MAKE_FILESYSTEM
+    ;;
+    
+    pd)
+    	PREPARE_DISK
+    ;;
+    
+    dv)
+    	MODPROBE_DISK
+    	CREATE_PARTITION
+    	MAKE_FILESYSTEM
+    	MODPROBE_USB
+    	MOUNT_ISO
+    ;;
+    
+    fstab)
+    	CREATE_FSTAB
+    ;;
+    
+    lilo)
+    	CREATE_LILO
+    ;;
+    
+    install)
+    	MENU_INIT
+    	MODPROBE_DISK MENU
+    	CREATE_PARTITION MENU
+    	MAKE_FILESYSTEM MENU
+    	MODPROBE_USB MENU
+		sleep 10 
+    	MOUNT_ISO MENU
+    	PREPARE_DISK MENU
+    	INSTALL_SYSTEM MENU
+    	INSTALL_EXTRA
+    	CREATE_USER
+    	CREATE_FSTAB MENU
+    	CREATE_LILO MENU
+    	APPLY_PATCH
+    	FINISH_INSTALL MENU
+    ;;
+
+	control_menu)
+		CONTROL_MENU
+	;;
+	
+    init)
+        MENU_INIT
+    ;;
+	
+
+    *)
+      	USAGE
+    ;;
+esac

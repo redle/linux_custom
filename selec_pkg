@@ -1,0 +1,15 @@
+#!/bin/sh
+
+for PKG in `cat /mnt/cdrom/slackware64/d/tagfile`; do
+
+    PACKAGE=`echo $PKG | cut -f1 -d":"`
+    PRIORITY=`echo $PKG | cut -f2 -d":"`
+
+    if [ $PRIORITY == "ADD" ]; then
+       echo "$PACKAGE:$PRIORITY"
+       continue
+    fi
+
+    echo "$PACKAGE:SKP"
+
+done

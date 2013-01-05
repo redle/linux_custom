@@ -1,0 +1,5 @@
+#!/bin/sh
+
+diff -crB inittab-origin inittab > patch/inittab.diff
+diff -crB rc.M-origin rc.M > patch/rc.M.diff
+diff -crB sshd_config-origin sshd_config > patch/sshd_config.diff

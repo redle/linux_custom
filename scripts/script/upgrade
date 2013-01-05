@@ -1,0 +1,342 @@
+#!/bin/sh
+
+LABEL="INSTALL"
+UPDATE_SYSTEM=0
+
+source /usr/sbin/functions
+
+recover_start() {
+  YIELD_INFO "INICIANDO PROCESSO DE ATUALIZACAO"
+  pendrive &
+  led &
+
+  sleep 3
+
+  recover_led init
+
+  recover_module
+  recover_verify
+  recover_mount
+  recover_init
+  recover_led finish
+}
+
+recover_doup() {
+
+    if [ ! -e /mnt/recover/etc/mtab ]; then
+        touch /mnt/recover/etc/mtab
+    fi
+
+    YIELD_INFO "ATUALIZANDO DB $1"
+    
+    TABLE=`sql "SELECT * FROM poweroff_log"  $1`
+    if [ $? -eq 1 ]; then
+        echo 'CREATE TABLE POWEROFF LOG'
+        sql 'CREATE TABLE poweroff_log (id integer not null, unixtime integer not null, lat_degree integer not null, lat integer not null, long_degree integer not null, long integer not null);'  $1
+        sql "INSERT INTO poweroff_log VALUES(0, 0, 0, 0, 0, 0)"  $1
+    fi
+       
+    TABLE=`sql "SELECT * FROM camera_adjust" $1`
+    if [ $? -eq 1 ]; then
+        YIELD_INFO 'CREATE TABLE CAMERA ADJUST'
+        sql 'CREATE TABLE camera_adjust (id integer not null, 
+        begin integer not null, 
+        finish integer not null, brightness integer not null,
+        saturation integer not null,
+        constrast integer not null,
+        hue integer not null);' $1
+    fi
+
+    FLAG=`sql "SELECT value FROM configure WHERE key LIKE 'SSH'" $1`
+    if [ "$FLAG" == "" ]; then
+        echo 'CREATE FLAG SSH'
+        sql "INSERT INTO configure VALUES('SSH', 0)" $1
+    fi
+
+    FLAG=`sql "SELECT value FROM configure WHERE key LIKE 'UPGRADE'" $1`
+    if [ "$FLAG" == "" ]; then
+        echo 'CREATE FLAG UPGRADE'
+        sql "INSERT INTO configure VALUES('UPGRADE', 1)" $1
+    fi
+
+    TABLE=`sql "SELECT * FROM error" $1`
+    if [ $? -eq 0 ]; then
+        echo 'CREATE TABLE ERROR LOG'
+        sql 'DELETE FROM error' $1
+        
+        sql "INSERT INTO error VALUES(179, 0)" $1
+        sql "INSERT INTO error VALUES(180, 0)" $1
+        sql "INSERT INTO error VALUES(181, 0)" $1
+        sql "INSERT INTO error VALUES(192, 0)" $1        
+        sql "INSERT INTO error VALUES(183, 0)" $1
+        sql "INSERT INTO error VALUES(184, 0)" $1
+        sql "INSERT INTO error VALUES(174, 0)" $1
+    fi
+
+    TABLE=`sql "SELECT * FROM error" $1`
+    if [ $? -eq 1 ]; then
+        echo 'CREATE TABLE ERROR LOG'
+        sql 'CREATE TABLE error (flag integer not null, value integer not null);' $1
+        
+        sql "INSERT INTO error VALUES(179, 0)" $1
+        sql "INSERT INTO error VALUES(180, 0)" $1
+        sql "INSERT INTO error VALUES(181, 0)" $1
+        sql "INSERT INTO error VALUES(192, 0)" $1        
+        sql "INSERT INTO error VALUES(183, 0)" $1
+        sql "INSERT INTO error VALUES(184, 0)" $1
+        sql "INSERT INTO error VALUES(174, 0)" $1
+    fi
+
+    TABLE=`sql "SELECT * FROM archive_log" $1`
+    if [ $? -eq 1 ]; then
+        echo 'CREATE TABLE ARCHIVE LOG'
+        sql "CREATE TABLE archive_log (id integer primary key, begin integer, finish integer, status integer)" $1
+        
+        mkdir /mnt/archive
+        sql "INSERT INTO configure VALUES('ARCHIVE', 0)" $1
+    fi
+
+    #FLAG=`sql "SELECT value FROM configure WHERE key LIKE 'DELETE_POOL'" $1`
+    #if [ "$FLAG" == "" ]; then
+    #    YIELD_INFO 'CREATE FLAG DELETE_POOL'
+    #    sql "INSERT INTO configure VALUES('DELETE_POOL', 2592000)" $1
+    #fi
+
+    FLAG=`sql "SELECT value FROM configure WHERE key LIKE 'RESET'" $1`
+    if [ "$FLAG" == "" ]; then
+        YIELD_INFO 'CREATE FLAG RESET'
+        sql "INSERT INTO configure VALUES('RESET', 1)" $1
+    fi
+
+    FLAG=`sql "SELECT value FROM configure WHERE key LIKE 'CONSOLE'" $1`
+    if [ "$FLAG" == "" ]; then
+        YIELD_INFO 'CREATE FLAG RESET'
+        sql "INSERT INTO configure VALUES('CONSOLE', '/dev/ttyS0')" $1
+    fi
+
+    FLAG=`sql "SELECT value FROM configure WHERE key LIKE 'SERIAL'" $1`
+    if [ "$FLAG" == "" ]; then
+        YIELD_INFO 'CREATE FLAG SERIAL'
+        sql "INSERT INTO configure VALUES('SERIAL', 'ttyS1')" $1
+    fi
+
+    FLAG=`sql "SELECT value FROM configure WHERE key LIKE 'WIFI'" $1`
+    if [ "$FLAG" == "" ]; then
+        YIELD_INFO 'CREATE FLAG WIFI'
+        sql "INSERT INTO configure VALUES('WIFI', 1)" $1
+    fi
+
+    FLAG=`sql "SELECT value FROM configure WHERE key LIKE 'STOP_ARCHIVE'" $1`
+    if [ "$FLAG" == "" ]; then
+        echo 'CREATE FLAG STOP_ARCHIVE'
+        sql "INSERT INTO configure VALUES('STOP_ARCHIVE', 0)" $1
+    fi
+
+    FLAG=`sql "SELECT value FROM configure WHERE key LIKE 'STOP_WIFI'" $1`
+    if [ "$FLAG" == "" ]; then
+        echo 'CREATE FLAG STOP_WIFI'
+        sql "INSERT INTO configure VALUES('STOP_WIFI', 5)" $1
+    fi
+
+    FLAG=`sql "SELECT value FROM configure WHERE key LIKE 'GRABBERUP'" $1`
+    if [ "$FLAG" == "" ]; then
+        YIELD_INFO 'CREATE FLAG GRABBERUP'
+        sql "INSERT INTO configure VALUES('GRABBERUP', 5)" $1
+    fi
+
+    FLAG=`sql "SELECT value FROM configure WHERE key LIKE 'POWERUP'" $1`
+    if [ "$FLAG" == "" ]; then
+        YIELD_INFO 'CREATE FLAG POWERUP'
+        sql "INSERT INTO configure VALUES('POWERUP', 10)" $1
+    fi
+
+    #sql "UPDATE camera_configure SET camera=1" $1
+    sql "UPDATE configure SET value=1 WHERE key like 'WIFI'" $1
+
+    FPS=`sql "SELECT fps FROM camera_configure" $1`
+    CAMERA=`sql "SELECT camera FROM camera_configure" $1`
+
+    if [ $CAMERA -eq 1 ] && [ $FPS -ne 3 ]; then
+        sql "UPDATE camera_configure SET fps=3" $1
+    elif [ $CAMERA -eq 2 ] && [ $FPS -ne 6 ]; then
+        sql "UPDATE camera_configure SET fps=6" $1
+    fi
+
+    WIFI=`sql "SELECT essid FROM wifi_configure WHERE essid LIKE 'T3L3M3TRI4'" $1`
+    if [ $WIFI == "T3L3M3TRI4" ]; then
+        sql "DELETE FROM wifi_configure" $1
+        sql "INSERT INTO wifi_configure VALUES(65535,'T3L3M3TRI4','p0nt0-c0l3t4-d3-d4d0s','WPA',54,'0.0.0.0','0.0.0.0','0.0.0.0','dw.emb.net',4880)" $1
+        sql "INSERT INTO wifi_configure VALUES(65535,'T3L3M3TRI4-BKP','p0nt0-c0l3t4-d3-d4d0s','WPA',54,'0.0.0.0','0.0.0.0','0.0.0.0','dw.emb.net',4880)" $1
+    fi
+
+    TARGET=`sql "SELECT COUNT(target) FROM wifi_configure WHERE target=65535" $1`
+    if [ $CAMERA -eq 1 ]; then
+        sql "UPDATE wifi_configure set target=65535 WHERE target=-1" $1
+    fi
+    
+    STOP_WIFI=`sql "SELECT value FROM configure WHERE key like 'STOP_WIFI'" $1`
+    if [ $STOP_WIFI -eq 1 ]; then
+        sql "UPDATE configure set value=5 WHERE key like 'STOP_WIFI'" $1
+    fi
+    
+    STOP_TX=`sql "SELECT value FROM configure WHERE key like 'STOP_TX'" $1`
+    if [ $STOP_TX -eq 1 ]; then
+        sql "UPDATE configure set value=0 WHERE key like 'STOP_TX'" $1
+    fi
+}
+
+recover_led() {
+
+  case $1 in
+  'init')
+    STATUS_LED=12
+  ;;
+
+  'finish')
+    STATUS_LED=10
+  ;;
+
+  'error')
+    STATUS_LED=11
+  ;;
+
+  esac
+
+  ev 1 $STATUS_LED
+  ev 2 $STATUS_LED
+  ev 3 $STATUS_LED
+}
+
+recover_verify() {
+  YIELD_INFO "VERIFICANDO DISPOSITIVOS"
+ 
+  if [ ! -e /dev/sdb ]; then
+    YIELD_INFO "COMPACT FLASH NAO ENCONTRADA"
+    recover_led error
+    exit 0
+  fi
+
+}
+
+recover_module() { 
+  YIELD_INFO "CARREGANDO MODULOS"
+  modprobe libata
+  modprobe pata_it821x
+  modprobe pata_rdc 
+  modprobe ata_piix
+  modprobe ahci &> /dev/null  
+}
+
+recover_mount() {
+  YIELD_INFO "VERIFICANDO COMPACT FLASH"
+  fsck.ext2 -y /dev/sdb1 &> /dev/null
+  fsck.ext2 -y /dev/sdb2 &> /dev/null
+
+  recover_backup
+
+  YIELD_INFO "FORMATANDO SISTEMA DO COMPACT FLASH"
+  mkfs.ext2 /dev/sdb1 &> /dev/null
+  tune2fs -c 3000 /dev/sdb1 &> /dev/null
+
+  tune2fs -U fe9aa91f-87a5-48b7-b725-3c4b2f7bd087 /dev/sdb1
+  tune2fs -U 30e2f977-30c2-441d-8f8e-d73f3961a901 /dev/sdb2
+
+  YIELD_INFO "MOUNTANDO PARTICAO DO SISTEMA"
+  mount /dev/sdb1 /mnt/recover
+
+}
+
+recover_backup() {
+
+  mount -n -o remount,rw /
+  mount /dev/sdb1 /mnt/recover
+
+  if [ $? -ne 0 ]; then
+     YIELD_INFO "ERRO AO MONTAR COMPACT FLASH"
+     recover_led error
+     exit 0
+  fi  
+
+  REVISAO=`cat /mnt/recover/etc/system`
+  VER_ATUAL=`echo $REVISAO | cut -d"." -f1`
+  REV_ATUAL=`echo $REVISAO | cut -d"." -f2`
+  
+  REVISAO_UPDATE=`cat /update/etc/system`
+  VER_UPDATE=`echo $REVISAO_UPDATE | cut -d"." -f1`
+  REV_UPDATE=`echo $REVISAO_UPDATE | cut -d"." -f2`
+
+  YIELD_INFO "VERSAO DA ATUALIZACAO: ${VER_UPDATE}.${REV_UPDATE}"
+  YIELD_INFO "VERIFICACAO DE VERSAO: ${VER_ATUAL}.${REV_ATUAL}"
+
+  if (([ $VER_ATUAL -eq $VER_UPDATE ] && [ $REV_UPDATE -eq $REV_ATUAL ]) ||  ([ $VER_ATUAL -eq $VER_UPDATE ] && [ $REV_UPDATE -gt $REV_ATUAL ])) || [ $VER_UPDATE -gt $VER_ATUAL ]; then
+    UPDATE_SYSTEM=1   
+
+    YIELD_INFO "CRIANDO BACKUP DO SISTEMA"  
+    rm /update/etc/sensor
+    cp -f /mnt/recover/etc/sensor /update/etc/
+
+    if [ -e /mnt/recover/var/lib/ervilha/db_embarcado.sl3 ]; then
+        YIELD_INFO "BACKUP BASE ANTIGA"
+        rm /update/var/lib/ervilha/db.sl3
+        cp -f /mnt/recover/var/lib/ervilha/db_embarcado.sl3 /update/var/lib/ervilha/db.sl3
+    else
+        rm /update/var/lib/ervilha/db.sl3
+        cp -f /mnt/recover/var/lib/ervilha/db.sl3 /update/var/lib/ervilha/db.sl3
+    fi
+
+    sync
+
+    recover_doup "/update/var/lib/ervilha/db.sl3"
+  fi
+  
+  umount /mnt/recover
+  mount -n -o remount,ro /
+  
+  if [ $UPDATE_SYSTEM -eq 0 ]; then
+      YIELD_INFO "CCA COM VERSAO ATUALIZADA"
+      recover_led finish
+      exit 0
+  fi
+
+}
+
+recover_init() {
+
+  YIELD_INFO "COPIANDO SISTEMA"
+  cp -a /update/* /mnt/recover
+
+  if [ $? -ne 0 ]; then
+    YIELD_INFO "PROBLEMA AO ATUALIZAR SISTEMA"
+    recover_led error
+    exit 0
+  fi
+
+  lilo -b /dev/sdb -r /mnt/recover &> /dev/null
+
+  rm /mnt/recover/dev/sd*
+
+  if [ $? -ne 0 ]; then
+    echo "PROBLEMA AO CARREGAR BOOTLOADER"
+    recover_led error
+    exit 0
+  fi
+
+  umount /dev/sdb1
+}
+
+case "$1" in
+
+'db')
+  
+  if [ ! -e $2 ]; then
+    echo "INFORME O CAMINHO DO BANCO"
+  fi
+
+  recover_doup $2
+  ;;
+
+*)
+  recover_start
+  ;;
+esac
+

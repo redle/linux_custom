@@ -1,0 +1,126 @@
+#! /bin/sh
+
+LABEL="PRODUCAO"
+
+source /camera/producao/functions
+
+SYSTEM=/camera/producao/system
+MOUNT=/mnt/emb
+DRIVE=$1
+
+CLEAN_SYSTEM() {
+    YIELD_INFO "LIMPEZA DO ARQUIVO DE INSTALACAO"
+    # DEIXAR EM UM PASTA FIXA lilo.conf e boot
+    rm -rf $MOUNT/etc/lilo.conf
+    #rm -rf $MOUNT/boot/
+
+    echo "" > $MOUNT/etc/HOSTNAME
+
+    if [ ! -e $MOUNT/etc/modulo ]; then
+        touch $MOUNT/etc/modulo
+    fi
+
+    echo "" > $MOUNT/etc/modulo
+
+    if [ ! -e $MOUNT/etc/sensor ]; then
+        touch $MOUNT/etc/sensor
+    fi
+    
+    #echo "" > $MOUNT/etc/sensor
+
+    rm -rf $MOUNT/var/log/packages/
+    rm -rf $MOUNT/var/log/removed_packages/
+    rm -rf $MOUNT/var/log/removed_scripts/
+    rm -rf $MOUNT/var/log/scripts/
+    
+    #sqlite3 $MOUNT/var/lib/ervilha/db.sl3 "INSERT INTO wifi_configure VALUES(1,'veltrac_camera','9a20e36fee','WEP',54,'172.16.0.10','255.255.255.0','172.16.0.254','172.16.0.90','4880');"
+
+    # zerar arquivos de log
+    #echo "" > $MOUNT/var/log/cron
+    #echo "" > $MOUNT/var/log/debug
+    #echo "" > $MOUNT/var/log/dmesg
+    #echo "" > $MOUNT/var/log/messages
+    #echo "" > $MOUNT/var/log/secure
+    #echo "" > $MOUNT/var/log/syslog
+    #echo "" > $MOUNT/var/log/dropbear.log
+
+    # echo "" > /var/log/btmp
+    # echo "" > /var/log/faillog
+    # echo "" > /var/log/lastlog
+    # echo "" > /var/log/wtmp
+
+
+    # PATCH DE LIMPEZA
+    # limpeza do crontab
+    # rm -rf /file_emb/home/
+    # rm -rf /file_emb/media/
+    # rm -rf /mnt/*
+    # mkdir -p /mnt/pendrive
+    # rm -rf /usr/X11*
+    # rm -rf /var/X11
+    # rm -rf /usr/man/
+    # rm -rf /usr/doc/
+    # rm -rf /usr/info/
+    # rm -rf /usr/local
+    # rm -rf /usr/src
+    # rm -rf /usr/share/locale/~en/
+    #
+    # rm -rf /etc/motd
+    # rm -rf /etc/issue*
+    # rm -rf /etc/slackware-version
+    # rm -rf /usr/share/zoneinfo
+    # rm ~/.sqlite_history
+    # rm ~/.bash_history
+    # rm /var/log/setup/*.*
+    # rm /var/log/maillog
+    # rm /tmp/.ICE-unix
+    # rm /tmp/.X11-unix
+    
+    # rm -rf /srv
+    # rm -rf /media
+    # rm -rf /mnt
+    
+    umount $MOUNT
+}
+
+USAGE() {
+    echo ""
+}
+
+MAIN() {  
+    YIELD_INFO "INICIANDO PROCESSO DE GRAVACAO"
+    CREATE_PARTITION $DRIVE 8
+    MAKE_FILESYSTEM $DRIVE 2   
+    COPY_SYSTEM ${DRIVE}1 $MOUNT $SYSTEM
+    CREATE_BOOTLOADER $DRIVE $MOUNT
+    UPDATE_SYSTEM $MOUNT
+    CLEAN_SYSTEM $MOUNT    
+    
+    YIELD_INFO "PROCESSO REALIZADO COM SUCESSO"
+}
+
+case $1 in
+    *)
+        if [ $# -lt 1 ]; then
+            USAGE
+            exit 1
+        fi
+
+        if [ "$1" == "create" ]; then
+            UPDATE_SYSTEM_CREATE $SYSTEM
+            exit 0
+        fi
+
+        if [ ! -e $1 ]; then
+            YIELD_ERROR "DISPOSITIVO $1 NAO EXISTE"
+            exit 1
+        fi
+
+        if [ "$2" == "up" ]; then
+            UPDATE_SYSTEM $MOUNT
+            exit 0
+        fi
+
+        MAIN
+    ;;
+esac

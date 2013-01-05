@@ -1,0 +1,323 @@
+#!/bin/sh
+
+#source /usr/bin/functions
+
+DRIVE_HD=/dev/sda
+DRIVE_USB=/dev/sdb
+
+MODULE_PATH=/lib/modules/3.5.0-rc7/kernel
+MODULE_IDE=$MODULE_PATH/drivers/ata/
+MODULE_USB=$MODULE_PATH/kernel/drivers/ata/
+
+PARTITION_SYSTEM=50
+PARTITION_DB=50
+PARTITION_SWAP=4
+ARCH=64
+
+PIPE_CONTROL=/tmp/setup_control
+
+INFO() {
+    echo -e "\033[1m[INSTALL] \033[0m $1"
+}
+
+ERROR() {
+    echo -e "\033[1m[INSTALL] \033[0m $1"
+}
+
+CREATE_PARTITION() {
+    INFO "CRIANDO PARTICOES: "
+   
+    dd if=/dev/zero of=$DRIVE bs=512 count=1 2> /dev/null > /dev/null
+
+    SIZE=`fdisk -l $DRIVE 2> /dev/null | grep Disk | grep -v doesn | awk '{print $5}'`
+
+    CYLINDER=`echo $SIZE/255/63/512 | bc`
+	CYLINDER_BYTE=`echo $SIZE/$CYLINDER | bc`
+
+	CYLINDER_SYSTEM=`echo "($PARTITION_SYSTEM*2^30)/$CYLINDER_BYTE" | bc`
+	CYLINDER_DB=`echo "($PARTITION_DB*2^30)/$CYLINDER_BYTE" | bc`
+	CYLINDER_SWAP=`echo "($PARTITION_SWAP*2^30)/$CYLINDER_BYTE" | bc`
+	
+    {
+    echo ,$CYLINDER_SYSTEM,,*
+    echo ,$CYLINDER_SWAP,82,
+    echo ,$CYLINDER_DB,,
+    echo ,,,-
+    } | sfdisk -H 255 -S 63 -C $CYLINDER $DRIVE_HD #2> /dev/null > /dev/null
+    
+    if [ $? -ne 0 ] || [ ! -e ${DRIVE_HD}1 ] || [ ! -e ${DRIVE_HD}2 ] || [ ! -e ${DRIVE_HD}3 ]; then
+        ERROR "FAIL CREATE PARTITION"
+        exit 0
+    fi
+}
+
+MAKE_FILESYSTEM() {
+	mkfs.ext4 ${DRIVE_HD}1
+	mkswap /dev/${DRIVE_HD}2
+	mkfs.ext4 ${DRIVE_HD}3
+	mkfs.ext4 ${DRIVE_HD}4
+}
+
+MODPROBE_DISK() {
+	
+	if [ "$1" == "MENU" ]; then
+		dialog                                                 \
+	   --title ' AGUARDE '                                     \
+	   --infobox '\nCarregando módulos do kernel de disco...'  \
+	   0 0
+	   
+	   return
+	   
+	   echo teste
+	   exit 0
+	fi
+
+	cd $MODULE_IDE/
+		
+	for MODULE_NAME in `ls`; do
+	    modprobe $MODULE_NAME 2> /dev/null
+	done
+	
+	modprobe sd_mod
+}
+
+MOUNT_ISO() {
+	mount /dev/sdb1 /mnt/pendrive
+
+	ISO=`find /mnt/pendrive/ -name *${ARCH}*.iso -print`
+	
+	if [ "$ISO" == "" ]; then
+		INFO "NAO ENCONTRADO O ISO DO SLACKWARE"
+	fi
+	
+	mount -o loop $ISO /mnt/iso/
+}
+
+MODPROBE_USB() {
+
+	if [ "$1" == "MENU" ]; then
+		dialog                                                 \
+	   --title ' AGUARDE '                                     \
+	   --infobox '\nCarregando módulos do kernel de disco...'  \
+	   0 0
+	fi
+	
+	modprobe ehci_hcd
+	modprobe uhci_hcd
+	modprobe ohci_hcd
+	modprobe vfat
+	modprobe usb_storage
+	modprobe sd_mod
+}
+
+PREPARE_DISK() {
+	modprobe ext4
+
+	INFO "PREPARANDO SISTEMA"
+	mount ${DRIVE_HD}1 /mnt/system
+}
+
+INSTALL_SYSTEM() {
+	PATH_INSTALL=/mnt/iso/slackware${ARCH}/
+
+	INFO "INICIANDO INSTALACAO"
+
+	mkdir /tmp
+
+	cd $PATH_INSTALL/a/
+	#installpkg --root /mnt/system *.t?z 2>> /tmp/error
+	installpkg -root /mnt/system -tagfile /tagfile/a_pkg *.t?z 2>> /tmp/error
+	
+	cd $PATH_INSTALL/l/
+	#installpkg --root /mnt/system *.t?z 2>> /tmp/error
+	installpkg -root /mnt/system -tagfile /tagfile/l_pkg *.t?z 2>> /tmp/error
+	
+	cd $PATH_INSTALL/n/
+	#installpkg --root /mnt/system *.t?z 2>> /tmp/error
+	installpkg -root /mnt/system -tagfile /tagfile/n_pkg *.t?z 2>> /tmp/error
+	
+	cd $PATH_INSTALL/d/
+	#installpkg --root /mnt/system *.t?z 2>> /tmp/error
+	installpkg -root /mnt/system -tagfile /tagfile/d_pkg *.t?z 2>> /tmp/error
+}
+
+CREATE_FSTAB() {
+	echo -e "
+/dev/sda2        swap             swap        defaults         0   0
+/dev/sda1        /           	  ext4        defaults         1   1
+/dev/sda3        /files_db     	  ext4        defaults         1   2
+/dev/sda4        /files     	  ext4        defaults         1   2
+#/dev/sda2        swap            swap        defaults         0   0
+" > /mnt/system/etc/fstab
+
+	mkdir /mnt/system/files
+	mkdir -p /mnt/system/files/vm
+	mkdir /mnt/system/files_db
+}
+
+CREATE_LILO() {
+
+echo -e "
+timeout = 1200
+lba32
+compact
+delay = 60
+
+change-rules
+  reset
+
+install = menu
+
+image = /boot/vmlinuz
+  root = /dev/sda1
+  label = lnx
+  read-only
+" > /mnt/system/etc/lilo.conf
+
+	lilo -b /dev/sda -r /mnt/system
+}
+
+FINISH_INSTALL() {
+    cd /
+    umount /mnt/system/
+}
+
+MENU_INIT() {
+    dialog --title ' AVISO - NCS GNU\LINUX ' --yesno '\nO procedimento de instalação automática irá apagar todos os dados do hard disk, antes de prosseguir verifique se os backup necessários foram feitos.\n\n Você deseja continuar?\n\n' 0 0
+
+    if [ $? -eq 1 ]; then
+		echo 255 > $PIPE_CONTROL
+    fi
+}
+
+CONTROL_MENU() {
+    STEP_CURRENT=0
+
+    touch $PIPE_CONTROL
+    echo 0 > $PIPE_CONTROL
+
+    while [ 1 -eq 1 ]; do
+        STEP_IN=`cat $PIPE_CONTROL`
+
+        if [ $STEP_IN -gt $STEP_CURRENT ]; then
+            STEP_CURRENT=$STEP_IN
+            
+            case $STEP_CURRENT in            	
+	            1)
+	            	MENU_INIT	
+	            ;;
+	            
+	            2)
+	            	MODPROBE_DISK MENU
+	            ;;
+	            
+	            255)
+	            	exit 0
+	            ;;
+            esac
+        fi
+
+        sleep 1
+    done
+}
+
+USAGE() {
+
+    echo -e "\033[1m[USE:\033[0m[ installer [OPCAO]
+\033[1m[[OPCAO]\033[0m
+    cp - CREATE_PARTITION 
+    mu - MODPROBE_USB
+    md - MODPROBE_DISK
+    mi - MOUNT_ISO
+    is - INSTALL_SYSTEM"
+}
+
+case $1 in   
+    cp)
+    	CREATE_PARTITION
+    ;;
+    
+    mu)
+    	MODPROBE_USB
+    ;;
+    
+    md)
+    	MODPROBE_DISK
+    ;;
+    
+    mi)
+    	MOUNT_ISO
+    ;;
+    
+    is)
+    	INSTALL_SYSTEM
+    ;;
+    
+    mf)
+    	MAKE_FILESYSTEM
+    ;;
+    
+    pd)
+    	PREPARE_DISK
+    ;;
+    
+    dv)
+    	MODPROBE_DISK
+    	CREATE_PARTITION
+    	MAKE_FILESYSTEM
+    	MODPROBE_USB
+    	MOUNT_ISO
+    ;;
+    
+    fstab)
+    	CREATE_FSTAB
+    ;;
+    
+    lilo)
+    	CREATE_LILO
+    ;;
+    
+    install)
+    	MODPROBE_DISK
+    	CREATE_PARTITION
+    	MAKE_FILESYSTEM
+    	MODPROBE_USB
+		sleep 10
+    	MOUNT_ISO
+    	PREPARE_DISK
+    	INSTALL_SYSTEM
+    	CREATE_FSTAB
+    	CREATE_LILO
+    	FINISH_INSTALL
+    ;;
+
+	test_menu)
+		MENU_INIT
+		echo 2 > $PIPE_CONTROL
+		sleep 10
+		#echo 2 > $PIPE_CONTROL
+    	#CREATE_PARTITION
+    	#MAKE_FILESYSTEM
+    	#MODPROBE_USB
+		#sleep 10
+    	#MOUNT_ISO
+    	#PREPARE_DISK
+    	#INSTALL_SYSTEM
+    	#CREATE_FSTAB
+    	#CREATE_LILO
+    	#FINISH_INSTALL
+	;;
+
+	control_menu)
+		CONTROL_MENU
+	;;
+	
+    init)
+        MENU_INIT
+    ;;
+	
+
+    *)
+      	USAGE
+    ;;
+esac

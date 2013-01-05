@@ -1,0 +1,63 @@
+#!/bin/sh
+
+PROJECT=/files/projeto/linux_custom
+SCRIPT=/files/projeto/linux_custom/scripts
+INITRD_FILE=$PROJECT/initrd.gz
+INITRD_PATH=$PROJECT/system-initrd
+
+copy_script() {
+    cp $PROJECT/installpkg $INITRD_PATH/sbin/
+    chown root.root $INITRD_PATH/sbin/installpkg
+    
+    cp $SCRIPT/setup $INITRD_PATH/usr/sbin/setup
+    chown root.root $INITRD_PATH/usr/sbin/setup
+}
+
+copy_tagfile() {
+    cp $PROJECT/tagfile/a_pkg $INITRD_PATH/tagfile/
+    cp $PROJECT/tagfile/l_pkg $INITRD_PATH/tagfile/
+    cp $PROJECT/tagfile/d_pkg $INITRD_PATH/tagfile/
+    cp $PROJECT/tagfile/n_pkg $INITRD_PATH/tagfile/
+}
+
+create_initrd() {
+    mount /dev/sdc2 /mnt/hd/
+
+    copy_script
+
+    copy_tagfile
+
+	copy_diff
+
+    cd $INITRD_PATH
+
+    find . | cpio -o -H newc | gzip -9c > $INITRD_FILE
+
+    cp $INITRD_FILE /mnt/hd/boot/
+
+    lilo -b /dev/sdc -r /mnt/hd/
+    umount /mnt/hd/
+}
+
+copy_diff() {
+	cd $PROJECT/config/
+
+	diff -crB origin/inittab inittab > patch/inittab.diff
+	diff -crB origin/rc.M rc.M > patch/rc.M.diff
+	diff -crB origin/sshd_config sshd_config > patch/sshd_config.diff
+	
+	cp -a patch/* $INITRD_PATH/patch/
+}
+
+case "$1" in
+
+patch)
+	copy_diff
+;;
+
+*)
+    create_initrd
+;;
+esac
+
+exit 0

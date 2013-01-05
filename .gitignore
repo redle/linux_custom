@@ -1,0 +1,11 @@
+backup
+dropbear.tar
+extra/*
+pkg/*
+slackboot
+sysinit
+system_base
+system-boot
+system-initrd
+system_usb
+init
