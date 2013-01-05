@@ -1,0 +1,3 @@
+# of module          name                 type                 compatible
+ahci_platform        *                    *                    calxeda,hb-ahci
+ahci_platform        *                    *                    snps,spear-ahci

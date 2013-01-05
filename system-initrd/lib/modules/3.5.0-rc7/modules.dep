@@ -1,0 +1,114 @@
+kernel/arch/x86/kernel/test_nx.ko:
+kernel/fs/mbcache.ko:
+kernel/fs/ext3/ext3.ko: kernel/fs/jbd/jbd.ko kernel/fs/mbcache.ko
+kernel/fs/ext2/ext2.ko: kernel/fs/mbcache.ko
+kernel/fs/ext4/ext4.ko: kernel/fs/mbcache.ko kernel/fs/jbd2/jbd2.ko kernel/lib/crc16.ko
+kernel/fs/jbd/jbd.ko:
+kernel/fs/jbd2/jbd2.ko:
+kernel/fs/fat/fat.ko:
+kernel/fs/fat/vfat.ko: kernel/fs/fat/fat.ko
+kernel/crypto/crc32c.ko:
+kernel/drivers/net/ethernet/marvell/sky2.ko:
+kernel/drivers/cdrom/cdrom.ko:
+kernel/drivers/usb/host/ehci-hcd.ko: kernel/drivers/usb/core/usbcore.ko kernel/drivers/usb/usb-common.ko
+kernel/drivers/usb/host/ohci-hcd.ko: kernel/drivers/usb/core/usbcore.ko kernel/drivers/usb/usb-common.ko
+kernel/drivers/usb/host/uhci-hcd.ko: kernel/drivers/usb/core/usbcore.ko kernel/drivers/usb/usb-common.ko
+kernel/drivers/usb/core/usbcore.ko: kernel/drivers/usb/usb-common.ko
+kernel/drivers/usb/mon/usbmon.ko: kernel/drivers/usb/core/usbcore.ko kernel/drivers/usb/usb-common.ko
+kernel/drivers/usb/storage/usb-storage.ko: kernel/drivers/usb/core/usbcore.ko kernel/drivers/usb/usb-common.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/usb/usb-common.ko:
+kernel/drivers/input/ff-memless.ko:
+kernel/drivers/hid/hid-a4tech.ko:
+kernel/drivers/hid/hid-apple.ko:
+kernel/drivers/hid/hid-belkin.ko:
+kernel/drivers/hid/hid-cherry.ko:
+kernel/drivers/hid/hid-chicony.ko:
+kernel/drivers/hid/hid-cypress.ko:
+kernel/drivers/hid/hid-ezkey.ko:
+kernel/drivers/hid/hid-gyration.ko:
+kernel/drivers/hid/hid-kensington.ko:
+kernel/drivers/hid/hid-logitech.ko: kernel/drivers/hid/usbhid/usbhid.ko kernel/drivers/usb/core/usbcore.ko kernel/drivers/usb/usb-common.ko kernel/drivers/input/ff-memless.ko
+kernel/drivers/hid/hid-logitech-dj.ko: kernel/drivers/hid/usbhid/usbhid.ko kernel/drivers/usb/core/usbcore.ko kernel/drivers/usb/usb-common.ko
+kernel/drivers/hid/hid-microsoft.ko:
+kernel/drivers/hid/hid-monterey.ko:
+kernel/drivers/hid/hid-ntrig.ko: kernel/drivers/hid/usbhid/usbhid.ko kernel/drivers/usb/core/usbcore.ko kernel/drivers/usb/usb-common.ko
+kernel/drivers/hid/hid-pl.ko: kernel/drivers/hid/usbhid/usbhid.ko kernel/drivers/usb/core/usbcore.ko kernel/drivers/usb/usb-common.ko kernel/drivers/input/ff-memless.ko
+kernel/drivers/hid/hid-petalynx.ko:
+kernel/drivers/hid/hid-samsung.ko:
+kernel/drivers/hid/hid-sony.ko: kernel/drivers/usb/core/usbcore.ko kernel/drivers/usb/usb-common.ko
+kernel/drivers/hid/hid-sunplus.ko:
+kernel/drivers/hid/hid-topseed.ko:
+kernel/drivers/hid/usbhid/usbhid.ko: kernel/drivers/usb/core/usbcore.ko kernel/drivers/usb/usb-common.ko
+kernel/drivers/scsi/scsi_mod.ko:
+kernel/drivers/scsi/scsi_transport_spi.ko: kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/scsi/sd_mod.ko: kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/scsi/sr_mod.ko: kernel/drivers/scsi/scsi_mod.ko kernel/drivers/cdrom/cdrom.ko
+kernel/drivers/scsi/sg.ko: kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/scsi/scsi_wait_scan.ko: kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/libata.ko: kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/ahci.ko: kernel/drivers/ata/libahci.ko kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/libahci.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/acard-ahci.ko: kernel/drivers/ata/libahci.ko kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/ahci_platform.ko: kernel/drivers/ata/libahci.ko kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_inic162x.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_sil24.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pdc_adma.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_arasan_cf.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_qstor.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_sx4.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/ata_piix.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_mv.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_nv.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_promise.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_sil.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_sis.ko: kernel/drivers/ata/pata_sis.ko kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_svw.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_uli.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_via.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/sata_vsc.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_ali.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_amd.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_artop.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_atiixp.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_atp867x.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_cmd64x.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_cs5520.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_cs5530.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_cs5535.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_cs5536.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_cypress.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_efar.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_hpt366.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_hpt37x.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_hpt3x2n.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_hpt3x3.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_it8213.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_it821x.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_jmicron.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_marvell.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_netcell.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_ninja32.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_ns87415.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_oldpiix.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_optidma.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_pdc2027x.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_pdc202xx_old.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_radisys.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_rdc.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_sc1200.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_sch.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_serverworks.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_sil680.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_sis.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_piccolo.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_triflex.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_via.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_sl82c105.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_cmd640.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_mpiix.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_ns87410.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_opti.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_rz1000.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/ata_generic.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/ata/pata_legacy.ko: kernel/drivers/ata/libata.ko kernel/drivers/scsi/scsi_mod.ko
+kernel/lib/crc16.ko:

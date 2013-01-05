@@ -1,0 +1,6 @@
+::sysinit:/etc/rc.d/rc.S
+:2345:wait:/etc/rc.d/rc.M
+tty1::respawn:-/bin/sh
+::ctrlaltdel:/sbin/reboot
+::shutdown:/sbin/swapoff -a >/dev/null 2>&1
+::shutdown:/bin/umount -a -r >/dev/null 2>&1

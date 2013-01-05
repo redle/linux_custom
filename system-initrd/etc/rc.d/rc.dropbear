@@ -1,0 +1,39 @@
+#!/bin/sh
+
+dropbear_start() {
+  if [ ! -f /etc/dropbear/dropbear_rsa_host_key ]; then
+    /usr/sbin/dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
+  fi
+  if [ ! -f /etc/dropbear/dropbear_dss_host_key ]; then
+    /usr/sbin/dropbearkey -t dss -f /etc/dropbear/dropbear_dss_host_key
+  fi
+
+  /usr/sbin/dropbear 2>> /var/log/dropbear.log
+}
+
+dropbear_stop() {
+  killall dropbear
+}
+
+dropbear_restart() {
+  if [ -r /var/run/dropbear.pid ]; then
+    kill `cat /var/run/dropbear.pid`
+  fi
+  sleep 1
+  dropbear_start
+}
+
+case "$1" in
+'start')
+  dropbear_start
+  ;;
+'stop')
+  dropbear_stop
+  ;;
+'restart')
+  dropbear_restart
+  ;;
+*)
+  echo "usage $0 start|stop|restart"
+esac
+

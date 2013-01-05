@@ -1,0 +1,31 @@
+#!/bin/ash
+PATH="/sbin:/bin:/usr/sbin:/usr/bin"
+
+mount -n proc /proc -t proc
+mount -n sysfs /sys -t sysfs
+
+if grep devtmpfs /proc/filesystems 1>/dev/null 2>/dev/null ; then
+  DEVTMPFS=1
+  mount -n devtmpfs /dev -t devtmpfs
+fi	
+
+if [ -x /sbin/udevd -a -x /sbin/udevadm ]; then
+  /sbin/udevd --daemon --resolve-names=never
+  /sbin/udevadm trigger --subsystem-match=block --action=add
+  /sbin/udevadm settle --timeout=10
+else
+  [ "$DEVTMPFS" != "1" ] && mdev -s
+fi
+
+# Load a custom keyboard mapping:
+if [ -n "$KEYMAP" ]; then
+  echo "${INITRD}:  Loading '$KEYMAP' keyboard mapping:"
+  tar xzOf /etc/keymaps.tar.gz ${KEYMAP}.bmap | loadkmap
+fi
+
+echo 0x0100 > /proc/sys/kernel/real-root-dev
+
+modprobe sky2
+ifconfig eth0 172.16.0.1
+sh /etc/rc.d/rc.dropbear start
+/bin/sh

@@ -1,0 +1,22 @@
+# commands common to all logins
+TERM=linux
+
+HOME=/root
+LESS=-MM
+
+# Set command line prompt:
+PS1='# '
+PS2='> '
+
+ignoreeof=10
+export HOME PATH DISPLAY LESS TERM PS1 PS2 ignoreeof
+umask 022
+
+# Append any additional sh scripts found in /etc/profile.d/:
+for profile_script in /etc/profile.d/*.sh ; do
+  if [ -x $profile_script ]; then
+    . $profile_script
+  fi
+done
+unset profile_script
+
